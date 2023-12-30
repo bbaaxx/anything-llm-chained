@@ -4,6 +4,12 @@ export default {
   home: () => {
     return "/";
   },
+  login: () => {
+    return "/login";
+  },
+  onboarding: () => {
+    return "/onboarding";
+  },
   github: () => {
     return "https://github.com/Mintplex-Labs/anything-llm";
   },
@@ -22,9 +28,6 @@ export default {
   feedback: () => {
     return "https://mintplexlabs.typeform.com/to/i0KE3aEW";
   },
-  appearance: () => {
-    return "/system/appearance";
-  },
   workspace: {
     chat: (slug) => {
       return `/workspace/${slug}`;
@@ -33,24 +36,56 @@ export default {
   exports: () => {
     return `${API_BASE.replace("/api", "")}/system/data-exports`;
   },
-  admin: {
+  apiDocs: () => {
+    return `${API_BASE}/docs`;
+  },
+  settings: {
     system: () => {
-      return `/admin/system-preferences`;
+      return `/settings/system-preferences`;
     },
     users: () => {
-      return `/admin/users`;
+      return `/settings/users`;
     },
     invites: () => {
-      return `/admin/invites`;
+      return `/settings/invites`;
     },
     workspaces: () => {
-      return `/admin/workspaces`;
+      return `/settings/workspaces`;
     },
     chats: () => {
-      return "/admin/workspace-chats";
+      return "/settings/workspace-chats";
+    },
+    llmPreference: () => {
+      return "/settings/llm-preference";
+    },
+    embeddingPreference: () => {
+      return "/settings/embedding-preference";
+    },
+    vectorDatabase: () => {
+      return "/settings/vector-database";
+    },
+    exportImport: () => {
+      return "/settings/export-import";
+    },
+    security: () => {
+      return "/settings/security";
     },
     appearance: () => {
-      return "/admin/appearance";
+      return "/settings/appearance";
+    },
+    apiKeys: () => {
+      return "/settings/api-keys";
+    },
+    dataConnectors: {
+      list: () => {
+        return "/settings/data-connectors";
+      },
+      github: () => {
+        return "/settings/data-connectors/github";
+      },
+      youtubeTranscript: () => {
+        return "/settings/data-connectors/youtube-transcript";
+      },
     },
   },
 };

@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { titleCase } from "text-case";
-import Admin from "../../../../models/admin";
+import Admin from "@/models/admin";
 import EditUserModal, { EditUserModalId } from "./EditUserModal";
+import { DotsThreeOutline } from "@phosphor-icons/react";
 
 export default function UserRow({ currUser, user }) {
   const rowRef = useRef(null);
@@ -29,25 +30,27 @@ export default function UserRow({ currUser, user }) {
 
   return (
     <>
-      <tr ref={rowRef} className="bg-transparent">
-        <th
-          scope="row"
-          className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white"
-        >
+      <tr
+        ref={rowRef}
+        className="bg-transparent text-white text-opacity-80 text-sm font-medium"
+      >
+        <th scope="row" className="px-6 py-4 whitespace-nowrap">
           {user.username}
         </th>
         <td className="px-6 py-4">{titleCase(user.role)}</td>
         <td className="px-6 py-4">{user.createdAt}</td>
         <td className="px-6 py-4 flex items-center gap-x-6">
-          <button
-            onClick={() =>
-              document?.getElementById(EditUserModalId(user))?.showModal()
-            }
-            className="font-medium text-blue-600 dark:text-blue-300 px-2 py-1 rounded-lg hover:bg-blue-50 hover:dark:bg-blue-800 hover:dark:bg-opacity-20"
-          >
-            Edit
-          </button>
-          {currUser.id !== user.id && (
+          {currUser?.role !== "default" && (
+            <button
+              onClick={() =>
+                document?.getElementById(EditUserModalId(user))?.showModal()
+              }
+              className="font-medium text-white text-opacity-80 rounded-lg hover:text-white px-2 py-1 hover:text-opacity-60 hover:bg-white hover:bg-opacity-10"
+            >
+              <DotsThreeOutline weight="fill" className="h-5 w-5" />
+            </button>
+          )}
+          {currUser?.id !== user.id && currUser?.role !== "default" && (
             <>
               <button
                 onClick={handleSuspend}
@@ -65,7 +68,7 @@ export default function UserRow({ currUser, user }) {
           )}
         </td>
       </tr>
-      <EditUserModal user={user} />
+      <EditUserModal currentUser={currUser} user={user} />
     </>
   );
 }

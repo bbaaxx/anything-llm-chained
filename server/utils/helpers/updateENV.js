@@ -10,12 +10,16 @@ const KEY_MAPPING = {
   },
   OpenAiModelPref: {
     envKey: "OPEN_MODEL_PREF",
-    checks: [isNotEmpty, validOpenAIModel],
+    checks: [isNotEmpty],
   },
   // Azure OpenAI Settings
   AzureOpenAiEndpoint: {
     envKey: "AZURE_OPENAI_ENDPOINT",
     checks: [isNotEmpty, validAzureURL],
+  },
+  AzureOpenAiTokenLimit: {
+    envKey: "AZURE_OPENAI_TOKEN_LIMIT",
+    checks: [validOpenAiTokenLimit],
   },
   AzureOpenAiKey: {
     envKey: "AZURE_OPENAI_KEY",
@@ -30,26 +34,123 @@ const KEY_MAPPING = {
     checks: [isNotEmpty],
   },
 
+  // Anthropic Settings
+  AnthropicApiKey: {
+    envKey: "ANTHROPIC_API_KEY",
+    checks: [isNotEmpty, validAnthropicApiKey],
+  },
+  AnthropicModelPref: {
+    envKey: "ANTHROPIC_MODEL_PREF",
+    checks: [isNotEmpty, validAnthropicModel],
+  },
+
+  GeminiLLMApiKey: {
+    envKey: "GEMINI_API_KEY",
+    checks: [isNotEmpty],
+  },
+  GeminiLLMModelPref: {
+    envKey: "GEMINI_LLM_MODEL_PREF",
+    checks: [isNotEmpty, validGeminiModel],
+  },
+
+  // LMStudio Settings
+  LMStudioBasePath: {
+    envKey: "LMSTUDIO_BASE_PATH",
+    checks: [isNotEmpty, validLLMExternalBasePath, validDockerizedUrl],
+  },
+  LMStudioTokenLimit: {
+    envKey: "LMSTUDIO_MODEL_TOKEN_LIMIT",
+    checks: [nonZero],
+  },
+
+  // LocalAI Settings
+  LocalAiBasePath: {
+    envKey: "LOCAL_AI_BASE_PATH",
+    checks: [isNotEmpty, validLLMExternalBasePath, validDockerizedUrl],
+  },
+  LocalAiModelPref: {
+    envKey: "LOCAL_AI_MODEL_PREF",
+    checks: [],
+  },
+  LocalAiTokenLimit: {
+    envKey: "LOCAL_AI_MODEL_TOKEN_LIMIT",
+    checks: [nonZero],
+  },
+  LocalAiApiKey: {
+    envKey: "LOCAL_AI_API_KEY",
+    checks: [],
+  },
+
+  OllamaLLMBasePath: {
+    envKey: "OLLAMA_BASE_PATH",
+    checks: [isNotEmpty, validOllamaLLMBasePath, validDockerizedUrl],
+  },
+  OllamaLLMModelPref: {
+    envKey: "OLLAMA_MODEL_PREF",
+    checks: [],
+  },
+  OllamaLLMTokenLimit: {
+    envKey: "OLLAMA_MODEL_TOKEN_LIMIT",
+    checks: [nonZero],
+  },
+
+  // Native LLM Settings
+  NativeLLMModelPref: {
+    envKey: "NATIVE_LLM_MODEL_PREF",
+    checks: [isDownloadedModel],
+  },
+
+  EmbeddingEngine: {
+    envKey: "EMBEDDING_ENGINE",
+    checks: [supportedEmbeddingModel],
+  },
+  EmbeddingBasePath: {
+    envKey: "EMBEDDING_BASE_PATH",
+    checks: [isNotEmpty, validLLMExternalBasePath, validDockerizedUrl],
+  },
+  EmbeddingModelPref: {
+    envKey: "EMBEDDING_MODEL_PREF",
+    checks: [isNotEmpty],
+  },
+  EmbeddingModelMaxChunkLength: {
+    envKey: "EMBEDDING_MODEL_MAX_CHUNK_LENGTH",
+    checks: [nonZero],
+  },
+
   // Vector Database Selection Settings
   VectorDB: {
     envKey: "VECTOR_DB",
     checks: [isNotEmpty, supportedVectorDB],
   },
+
+  // Chroma Options
   ChromaEndpoint: {
     envKey: "CHROMA_ENDPOINT",
-    checks: [isValidURL, validChromaURL],
+    checks: [isValidURL, validChromaURL, validDockerizedUrl],
   },
+  ChromaApiHeader: {
+    envKey: "CHROMA_API_HEADER",
+    checks: [],
+  },
+  ChromaApiKey: {
+    envKey: "CHROMA_API_KEY",
+    checks: [],
+  },
+
+  // Weaviate Options
   WeaviateEndpoint: {
     envKey: "WEAVIATE_ENDPOINT",
-    checks: [isValidURL],
+    checks: [isValidURL, validDockerizedUrl],
   },
   WeaviateApiKey: {
     envKey: "WEAVIATE_API_KEY",
     checks: [],
   },
+
+  // QDrant Options
   QdrantEndpoint: {
     envKey: "QDRANT_ENDPOINT",
-    checks: [isValidURL],
+    checks: [isValidURL, validDockerizedUrl],
   },
   QdrantApiKey: {
     envKey: "QDRANT_API_KEY",
@@ -72,18 +173,21 @@ const KEY_MAPPING = {
   // System Settings
   AuthToken: {
     envKey: "AUTH_TOKEN",
-    checks: [],
+    checks: [requiresForceMode],
   },
   JWTSecret: {
     envKey: "JWT_SECRET",
-    checks: [],
+    checks: [requiresForceMode],
   },
-  // Not supported yet.
-  // 'StorageDir': 'STORAGE_DIR',
 };
 
 function isNotEmpty(input = "") {
   return !input || input.length === 0 ? "Value cannot be empty" : null;
+}
+
+function nonZero(input = "") {
+  if (isNaN(Number(input))) return "Value must be a number";
+  return Number(input) <= 0 ? "Value must be greater than zero" : null;
 }
 
 function isValidURL(input = "") {
@@ -99,24 +203,67 @@ function validOpenAIKey(input = "") {
   return input.startsWith("sk-") ? null : "OpenAI Key must start with sk-";
 }
 
-function supportedLLM(input = "") {
-  return ["openai", "azure"].includes(input);
+function validAnthropicApiKey(input = "") {
+  return input.startsWith("sk-ant-")
+    ? null
+    : "Anthropic Key must start with sk-ant-";
 }
 
-function validOpenAIModel(input = "") {
-  const validModels = [
-    "gpt-4",
-    "gpt-4-0613",
-    "gpt-4-32k",
-    "gpt-4-32k-0613",
-    "gpt-3.5-turbo",
-    "gpt-3.5-turbo-0613",
-    "gpt-3.5-turbo-16k",
-    "gpt-3.5-turbo-16k-0613",
-  ];
+function validLLMExternalBasePath(input = "") {
+  try {
+    new URL(input);
+    if (!input.includes("v1")) return "URL must include /v1";
+    if (input.split("").slice(-1)?.[0] === "/")
+      return "URL cannot end with a slash";
+    return null;
+  } catch {
+    return "Not a valid URL";
+  }
+}
+
+function validOllamaLLMBasePath(input = "") {
+  try {
+    new URL(input);
+    if (input.split("").slice(-1)?.[0] === "/")
+      return "URL cannot end with a slash";
+    return null;
+  } catch {
+    return "Not a valid URL";
+  }
+}
+
+function supportedLLM(input = "") {
+  return [
+    "openai",
+    "azure",
+    "anthropic",
+    "gemini",
+    "lmstudio",
+    "localai",
+    "ollama",
+    "native",
+  ].includes(input);
+}
+
+function validGeminiModel(input = "") {
+  const validModels = ["gemini-pro"];
   return validModels.includes(input)
     ? null
     : `Invalid Model type. Must be one of ${validModels.join(", ")}.`;
+}
+
+function validAnthropicModel(input = "") {
+  const validModels = ["claude-2", "claude-instant-1"];
+  return validModels.includes(input)
+    ? null
+    : `Invalid Model type. Must be one of ${validModels.join(", ")}.`;
+}
+
+function supportedEmbeddingModel(input = "") {
+  const supported = ["openai", "azure", "localai", "native"];
+  return supported.includes(input)
+    ? null
+    : `Invalid Embedding model type. Must be one of ${supported.join(", ")}.`;
 }
 
 function supportedVectorDB(input = "") {
@@ -143,11 +290,50 @@ function validAzureURL(input = "") {
   }
 }
 
+function validOpenAiTokenLimit(input = "") {
+  const tokenLimit = Number(input);
+  if (isNaN(tokenLimit)) return "Token limit is not a number";
+  if (![4_096, 16_384, 8_192, 32_768].includes(tokenLimit))
+    return "Invalid OpenAI token limit.";
+  return null;
+}
+
+function requiresForceMode(_, forceModeEnabled = false) {
+  return forceModeEnabled === true ? null : "Cannot set this setting.";
+}
+
+function isDownloadedModel(input = "") {
+  const fs = require("fs");
+  const path = require("path");
+  const storageDir = path.resolve(
+    process.env.STORAGE_DIR
+      ? path.resolve(process.env.STORAGE_DIR, "models", "downloaded")
+      : path.resolve(__dirname, `../../storage/models/downloaded`)
+  );
+  if (!fs.existsSync(storageDir)) return false;
+
+  const files = fs
+    .readdirSync(storageDir)
+    .filter((file) => file.includes(".gguf"));
+  return files.includes(input);
+}
+
+function validDockerizedUrl(input = "") {
+  if (process.env.ANYTHING_LLM_RUNTIME !== "docker") return null;
+  try {
+    const { hostname } = new URL(input);
+    if (["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname.toLowerCase()))
+      return "Localhost, 127.0.0.1, or 0.0.0.0 origins cannot be reached from inside the AnythingLLM container. Please use host.docker.internal, a real machine ip, or domain to connect to your service.";
+    return null;
+  } catch {}
+  return null;
+}
+
 // This will force update .env variables which for any which reason were not able to be parsed or
 // read from an ENV file as this seems to be a complicating step for many so allowing people to write
 // to the process will at least alleviate that issue. It does not perform comprehensive validity checks or sanity checks
 // and is simply for debugging when the .env not found issue many come across.
-function updateENV(newENVs = {}) {
+function updateENV(newENVs = {}, force = false) {
   let error = "";
   const validKeys = Object.keys(KEY_MAPPING);
   const ENV_KEYS = Object.keys(newENVs).filter(
@@ -159,7 +345,7 @@ function updateENV(newENVs = {}) {
     const { envKey, checks } = KEY_MAPPING[key];
     const value = newENVs[key];
     const errors = checks
-      .map((validityCheck) => validityCheck(value))
+      .map((validityCheck) => validityCheck(value, force))
       .filter((err) => typeof err === "string");
 
     if (errors.length > 0) {
@@ -181,9 +367,16 @@ async function dumpENV() {
   const frozenEnvs = {};
   const protectedKeys = [
     ...Object.values(KEY_MAPPING).map((values) => values.envKey),
-    "CACHE_VECTORS",
     "STORAGE_DIR",
     "SERVER_PORT",
+    // Password Schema Keys if present.
+    "PASSWORDMINCHAR",
+    "PASSWORDMAXCHAR",
+    "PASSWORDLOWERCASE",
+    "PASSWORDUPPERCASE",
+    "PASSWORDNUMERIC",
+    "PASSWORDSYMBOL",
+    "PASSWORDREQUIREMENTS",
   ];
 
   for (const key of protectedKeys) {

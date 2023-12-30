@@ -1,6 +1,16 @@
-import React, { useState, useRef, memo, useEffect } from "react";
+import {
+  Chats,
+  CircleNotch,
+  Gear,
+  PaperPlaneRight,
+  Quotes,
+} from "@phosphor-icons/react";
+import React, { useState, useRef } from "react";
 import { isMobile } from "react-device-detect";
-import { Loader, Menu, X } from "react-feather";
+import ManageWorkspace, {
+  useManageWorkspaceModal,
+} from "../../../Modals/MangeWorkspace";
+import useUser from "@/hooks/useUser";
 
 export default function PromptInput({
   workspace,
@@ -10,13 +20,16 @@ export default function PromptInput({
   inputDisabled,
   buttonDisabled,
 }) {
-  const [showMenu, setShowMenu] = useState(false);
+  const { showing, showModal, hideModal } = useManageWorkspaceModal();
   const formRef = useRef(null);
   const [_, setFocused] = useState(false);
+  const { user } = useUser();
+
   const handleSubmit = (e) => {
     setFocused(false);
     submit(e);
   };
+
   const captureEnter = (event) => {
     if (event.keyCode == 13) {
       if (!event.shiftKey) {
@@ -24,6 +37,7 @@ export default function PromptInput({
       }
     }
   };
+
   const adjustTextArea = (event) => {
     if (isMobile) return false;
     const element = event.target;
@@ -34,173 +48,123 @@ export default function PromptInput({
         : "1px";
   };
 
-  const setTextCommand = (command = "") => {
-    const storageKey = `workspace_chat_mode_${workspace.slug}`;
-    if (command === "/query") {
-      window.localStorage.setItem(storageKey, "query");
-      window.dispatchEvent(new Event("workspace_chat_mode_update"));
-      return;
-    } else if (command === "/conversation") {
-      window.localStorage.setItem(storageKey, "chat");
-      window.dispatchEvent(new Event("workspace_chat_mode_update"));
-      return;
-    }
-
-    onChange({ target: { value: `${command} ${message}` } });
-  };
-
   return (
-    <div className="w-full fixed md:absolute bottom-0 left-0 z-10">
+    <div className="w-full fixed md:absolute bottom-0 left-0 z-10 md:z-0 flex justify-center items-center overflow-hidden">
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-y-1 bg-white dark:bg-black-900 md:bg-transparent rounded-t-lg md:w-3/4 w-full mx-auto"
+        className="flex flex-col gap-y-1 rounded-t-lg md:w-3/4 w-full mx-auto max-w-xl"
       >
-        <div className="flex items-center py-2 px-4 rounded-lg">
-          <CommandMenu
-            workspace={workspace}
-            show={showMenu}
-            handleClick={setTextCommand}
-            hide={() => setShowMenu(false)}
-          />
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            type="button"
-            className="p-2 text-slate-500 bg-transparent rounded-md hover:bg-gray-200 dark:hover:bg-stone-500 dark:hover:text-slate-200"
-          >
-            <Menu className="w-4 h-4 md:h-6 md:w-6" />
-          </button>
-          <textarea
-            onKeyUp={adjustTextArea}
-            onKeyDown={captureEnter}
-            onChange={onChange}
-            required={true}
-            maxLength={240}
-            disabled={inputDisabled}
-            onFocus={() => setFocused(true)}
-            onBlur={(e) => {
-              setFocused(false);
-              adjustTextArea(e);
-            }}
-            value={message}
-            className="cursor-text max-h-[100px] md:min-h-[40px] block mx-2 md:mx-4 p-2.5 w-full text-[16px] md:text-sm rounded-lg border bg-gray-50 border-gray-300 placeholder-gray-400 text-gray-900 dark:text-white dark:bg-stone-600 dark:border-stone-700 dark:placeholder-stone-400"
-            placeholder={
-              isMobile
-                ? "Enter your message here."
-                : "Shift + Enter for newline. Enter to submit."
-            }
-          />
-          <button
-            ref={formRef}
-            type="submit"
-            disabled={buttonDisabled}
-            className="inline-flex justify-center p-0 md:p-2 rounded-full cursor-pointer text-black-900 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-stone-500 group"
-          >
-            {buttonDisabled ? (
-              <Loader className="w-6 h-6 animate-spin" />
-            ) : (
-              <svg
-                aria-hidden="true"
-                className="w-6 h-6 rotate-45 fill-gray-500 dark:fill-slate-500 group-hover:dark:fill-slate-200"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
+        <div className="flex items-center rounded-lg md:mb-4">
+          <div className="w-[600px] bg-main-gradient shadow-2xl border border-white/50 rounded-2xl flex flex-col px-4 overflow-hidden">
+            <div className="flex items-center w-full border-b-2 border-gray-500/50">
+              <textarea
+                onKeyUp={adjustTextArea}
+                onKeyDown={captureEnter}
+                onChange={onChange}
+                required={true}
+                disabled={inputDisabled}
+                onFocus={() => setFocused(true)}
+                onBlur={(e) => {
+                  setFocused(false);
+                  adjustTextArea(e);
+                }}
+                value={message}
+                className="cursor-text max-h-[100px] md:min-h-[40px] mx-2 md:mx-0 py-2 w-full text-[16px] md:text-md text-white bg-transparent placeholder:text-white/60 resize-none active:outline-none focus:outline-none flex-grow"
+                placeholder={"Send a message"}
+              />
+              <button
+                ref={formRef}
+                type="submit"
+                disabled={buttonDisabled}
+                className="inline-flex justify-center rounded-2xl cursor-pointer text-white/60 hover:text-white group ml-4"
               >
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path>
-              </svg>
-            )}
-            <span className="sr-only">Send message</span>
-          </button>
+                {buttonDisabled ? (
+                  <CircleNotch className="w-6 h-6 animate-spin" />
+                ) : (
+                  <PaperPlaneRight className="w-7 h-7 my-3" weight="fill" />
+                )}
+                <span className="sr-only">Send message</span>
+              </button>
+            </div>
+            <div className="flex justify-between py-3.5">
+              <div className="flex gap-2">
+                {user?.role !== "default" && (
+                  <Gear
+                    onClick={showModal}
+                    className="w-7 h-7 text-white/60 hover:text-white cursor-pointer"
+                    weight="fill"
+                  />
+                )}
+
+                <ChatModeSelector workspace={workspace} />
+                {/* <TextT
+                  className="w-7 h-7 text-white/30 cursor-not-allowed"
+                  weight="fill"
+                /> */}
+              </div>
+              {/* <Microphone
+                className="w-7 h-7 text-white/30 cursor-not-allowed"
+                weight="fill"
+              /> */}
+            </div>
+          </div>
         </div>
-        <Tracking workspaceSlug={workspace.slug} />
       </form>
+      {showing && (
+        <ManageWorkspace hideModal={hideModal} providedSlug={workspace.slug} />
+      )}
     </div>
   );
 }
 
-const Tracking = memo(({ workspaceSlug }) => {
-  const storageKey = `workspace_chat_mode_${workspaceSlug}`;
+function ChatModeSelector({ workspace }) {
+  const STORAGE_KEY = `workspace_chat_mode_${workspace.slug}`;
   const [chatMode, setChatMode] = useState(
-    window.localStorage.getItem(storageKey) ?? "chat"
+    window.localStorage.getItem(STORAGE_KEY) ?? "chat"
   );
+  const [showToolTip, setShowTooltip] = useState(false);
+  const [delayHandler, setDelayHandler] = useState(null);
 
-  useEffect(() => {
-    function watchForChatModeChange() {
-      if (!workspaceSlug) return;
-      window.addEventListener(`workspace_chat_mode_update`, () => {
-        try {
-          const chatMode = window.localStorage.getItem(storageKey);
-          setChatMode(chatMode);
-        } catch {}
-      });
-    }
-    watchForChatModeChange();
-  }, [workspaceSlug]);
+  function toggleMode() {
+    const newChatMode = chatMode === "chat" ? "query" : "chat";
+    setChatMode(newChatMode);
+    window.localStorage.setItem(STORAGE_KEY, newChatMode);
+  }
 
+  function handleMouseEnter() {
+    if (isMobile) return false;
+    setDelayHandler(
+      setTimeout(() => {
+        setShowTooltip(true);
+      }, 700)
+    );
+  }
+
+  const cleanupTooltipListener = () => {
+    clearTimeout(delayHandler);
+    setShowTooltip(false);
+  };
+
+  const ModeIcon = chatMode === "chat" ? Chats : Quotes;
   return (
-    <div className="flex flex-col md:flex-row w-full justify-center items-center gap-2 mb-2 px-4 mx:px-0">
-      <p className="bg-gray-200 dark:bg-stone-600 text-gray-800 dark:text-slate-400 text-xs px-2 rounded-lg font-mono text-center">
-        Chat mode: {chatMode}
-      </p>
-      <p className="text-slate-400 text-xs text-center">
-        Responses from system may produce inaccurate or invalid responses - use
-        with caution.
-      </p>
-    </div>
-  );
-});
-
-function CommandMenu({ workspace, show, handleClick, hide }) {
-  if (!show) return null;
-  const COMMANDS = [
-    {
-      cmd: "/conversation",
-      description: "- switch to chat mode (remembers recent chat history) .",
-    },
-    {
-      cmd: "/query",
-      description: "- switch to query mode (does not remember previous chats).",
-    },
-    { cmd: "/reset", description: "- clear current chat history." },
-  ];
-
-  return (
-    <div className="absolute top-[-25vh] md:top-[-23vh] min-h-[200px] flex flex-col rounded-lg border border-slate-400 p-2 pt-4 bg-gray-50 dark:bg-stone-600">
-      <div className="flex justify-between items-center border-b border-slate-400 px-2 py-1 ">
-        <p className="text-gray-800 dark:text-slate-200">Available Commands</p>
-        <button
-          type="button"
-          onClick={hide}
-          className="p-2 rounded-lg hover:bg-gray-200 hover:dark:bg-slate-500 rounded-full text-gray-800 dark:text-slate-400"
-        >
-          <X className="h-4 w-4" />
-        </button>
+    <div
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={cleanupTooltipListener}
+    >
+      <div
+        className={`opacity-${
+          showToolTip ? 1 : 0
+        } pointer-events-none transition-all duration-300 tip absolute bottom-10 z-99 left-0 bg-white/50 text-gray-200 text-xs p-1.5 rounded shadow-lg whitespace-nowrap`}
+      >
+        You are currently in {chatMode} mode. Click to switch to{" "}
+        {chatMode === "chat" ? "query" : "chat"} mode.
       </div>
-
-      <div className="flex flex-col">
-        {COMMANDS.map((item, i) => {
-          const { cmd, description } = item;
-          return (
-            <div className="border-b border-slate-400 p-1">
-              <button
-                key={i}
-                type="button"
-                onClick={() => {
-                  handleClick(cmd);
-                  hide();
-                }}
-                className="w-full px-4 py-2 flex items-center rounded-lg hover:bg-gray-300 hover:dark:bg-slate-500 gap-x-1 disabled:cursor-not-allowed"
-              >
-                <p className="text-gray-800 dark:text-slate-200 font-semibold">
-                  {cmd}
-                </p>
-                <p className="text-gray-800 dark:text-slate-300 text-sm">
-                  {description}
-                </p>
-              </button>
-            </div>
-          );
-        })}
-      </div>
+      <ModeIcon
+        onClick={toggleMode}
+        className="w-7 h-7 text-white/60 hover:text-white cursor-pointer"
+        weight="fill"
+      />
     </div>
   );
 }

@@ -1,169 +1,128 @@
+const prisma = require("../utils/prisma");
+
 const User = {
-  tablename: "users",
-  writable: [],
-  colsInit: `
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT UNIQUE,
-  password TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT "default",
-  suspended INTEGER NOT NULL DEFAULT 0,
-  createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-  lastUpdatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-  `,
-  migrateTable: async function () {
-    const { checkForMigrations } = require("../utils/database");
-    console.log(`\x1b[34m[MIGRATING]\x1b[0m Checking for User migrations`);
-    const db = await this.db(false);
-    await checkForMigrations(this, db);
-  },
-  migrations: function () {
-    return [];
-  },
-  db: async function (tracing = true) {
-    const sqlite3 = require("sqlite3").verbose();
-    const { open } = require("sqlite");
-
-    const db = await open({
-      filename: `${
-        !!process.env.STORAGE_DIR ? `${process.env.STORAGE_DIR}/` : "storage/"
-      }anythingllm.db`,
-      driver: sqlite3.Database,
-    });
-
-    await db.exec(
-      `PRAGMA foreign_keys = ON;CREATE TABLE IF NOT EXISTS ${this.tablename} (${this.colsInit})`
-    );
-
-    if (tracing) db.on("trace", (sql) => console.log(sql));
-    return db;
-  },
-  create: async function ({ username, password, role = null }) {
-    const bcrypt = require("bcrypt");
-    const db = await this.db();
-    const { id, success, message } = await db
-      .run(
-        `INSERT INTO ${this.tablename} (username, password, role) VALUES(?, ?, ?)`,
-        [username, bcrypt.hashSync(password, 10), role ?? "default"]
-      )
-      .then((res) => {
-        return { id: res.lastID, success: true, message: null };
-      })
-      .catch((error) => {
-        return { id: null, success: false, message: error.message };
-      });
-
-    if (!success) {
-      db.close();
-      console.error("FAILED TO CREATE USER.", message);
-      return { user: null, error: message };
+  create: async function ({ username, password, role = "default" }) {
+    const passwordCheck = this.checkPasswordComplexity(password);
+    if (!passwordCheck.checkedOK) {
+      return { user: null, error: passwordCheck.error };
     }
 
-    const user = await db.get(
-      `SELECT * FROM ${this.tablename} WHERE id = ${id} `
-    );
-    db.close();
-
-    return { user, error: null };
-  },
-  update: async function (userId, updates = {}) {
-    const user = await this.get(`id = ${userId}`);
-    if (!user) return { success: false, error: "User does not exist." };
-    const { username, password, role, suspended = 0 } = updates;
-    const toUpdate = { suspended };
-
-    if (user.username !== username && username?.length > 0) {
-      const usedUsername = !!(await this.get(`username = '${username}'`));
-      if (usedUsername)
-        return { success: false, error: `${username} is already in use.` };
-      toUpdate.username = username;
-    }
-
-    if (!!password) {
+    try {
       const bcrypt = require("bcrypt");
-      toUpdate.password = bcrypt.hashSync(password, 10);
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      const user = await prisma.users.create({
+        data: {
+          username,
+          password: hashedPassword,
+          role,
+        },
+      });
+      return { user, error: null };
+    } catch (error) {
+      console.error("FAILED TO CREATE USER.", error.message);
+      return { user: null, error: error.message };
     }
+  },
 
-    if (user.role !== role && ["admin", "default"].includes(role)) {
-      // If was existing admin and that has been changed
-      // make sure at least one admin exists
-      if (user.role === "admin") {
-        const validAdminCount = (await this.count(`role = 'admin'`)) > 1;
-        if (!validAdminCount)
-          return {
-            success: false,
-            error: `There would be no admins if this action was completed. There must be at least one admin.`,
-          };
+  update: async function (userId, updates = {}) {
+    try {
+      // Rehash new password if it exists as update field
+      if (updates.hasOwnProperty("password")) {
+        const passwordCheck = this.checkPasswordComplexity(updates.password);
+        if (!passwordCheck.checkedOK) {
+          return { success: false, error: passwordCheck.error };
+        }
+
+        const bcrypt = require("bcrypt");
+        updates.password = bcrypt.hashSync(updates.password, 10);
+      } else {
+        delete updates.password;
       }
 
-      toUpdate.role = role;
+      await prisma.users.update({
+        where: { id: parseInt(userId) },
+        data: updates,
+      });
+      return { success: true, error: null };
+    } catch (error) {
+      console.error(error.message);
+      return { success: false, error: error.message };
     }
+  },
 
-    if (Object.keys(toUpdate).length !== 0) {
-      const values = Object.values(toUpdate);
-      const template = `UPDATE ${this.tablename} SET ${Object.keys(
-        toUpdate
-      ).map((key) => {
-        return `${key}=?`;
-      })} WHERE id = ?`;
+  get: async function (clause = {}) {
+    try {
+      const user = await prisma.users.findFirst({ where: clause });
+      return user ? { ...user } : null;
+    } catch (error) {
+      console.error(error.message);
+      return null;
+    }
+  },
 
-      const db = await this.db();
-      const { success, message } = await db
-        .run(template, [...values, userId])
-        .then(() => {
-          return { success: true, message: null };
-        })
-        .catch((error) => {
-          return { success: false, message: error.message };
-        });
+  count: async function (clause = {}) {
+    try {
+      const count = await prisma.users.count({ where: clause });
+      return count;
+    } catch (error) {
+      console.error(error.message);
+      return 0;
+    }
+  },
 
-      db.close();
-      if (!success) {
-        console.error(message);
-        return { success: false, error: message };
+  delete: async function (clause = {}) {
+    try {
+      await prisma.users.deleteMany({ where: clause });
+      return true;
+    } catch (error) {
+      console.error(error.message);
+      return false;
+    }
+  },
+
+  where: async function (clause = {}, limit = null) {
+    try {
+      const users = await prisma.users.findMany({
+        where: clause,
+        ...(limit !== null ? { take: limit } : {}),
+      });
+      return users;
+    } catch (error) {
+      console.error(error.message);
+      return [];
+    }
+  },
+
+  checkPasswordComplexity: function (passwordInput = "") {
+    const passwordComplexity = require("joi-password-complexity");
+    // Can be set via ENV variable on boot. No frontend config at this time.
+    // Docs: https://www.npmjs.com/package/joi-password-complexity
+    const complexityOptions = {
+      min: process.env.PASSWORDMINCHAR || 8,
+      max: process.env.PASSWORDMAXCHAR || 250,
+      lowerCase: process.env.PASSWORDLOWERCASE || 0,
+      upperCase: process.env.PASSWORDUPPERCASE || 0,
+      numeric: process.env.PASSWORDNUMERIC || 0,
+      symbol: process.env.PASSWORDSYMBOL || 0,
+      // reqCount should be equal to how many conditions you are testing for (1-4)
+      requirementCount: process.env.PASSWORDREQUIREMENTS || 0,
+    };
+
+    const complexityCheck = passwordComplexity(
+      complexityOptions,
+      "password"
+    ).validate(passwordInput);
+    if (complexityCheck.hasOwnProperty("error")) {
+      let myError = "";
+      let prepend = "";
+      for (let i = 0; i < complexityCheck.error.details.length; i++) {
+        myError += prepend + complexityCheck.error.details[i].message;
+        prepend = ", ";
       }
+      return { checkedOK: false, error: myError };
     }
 
-    return { success: true, error: null };
-  },
-  get: async function (clause = "") {
-    const db = await this.db();
-    const result = await db
-      .get(
-        `SELECT * FROM ${this.tablename} ${clause ? `WHERE ${clause}` : clause}`
-      )
-      .then((res) => res || null);
-    if (!result) return null;
-    db.close();
-    return { ...result };
-  },
-  count: async function (clause = null) {
-    const db = await this.db();
-    const { count } = await db.get(
-      `SELECT COUNT(*) as count FROM ${this.tablename} ${
-        clause ? `WHERE ${clause}` : ""
-      } `
-    );
-    db.close();
-
-    return count;
-  },
-  delete: async function (clause = "") {
-    const db = await this.db();
-    await db.get(`DELETE FROM ${this.tablename} WHERE ${clause}`);
-    db.close();
-
-    return true;
-  },
-  where: async function (clause = "", limit = null) {
-    const db = await this.db();
-    const results = await db.all(
-      `SELECT * FROM ${this.tablename} ${clause ? `WHERE ${clause}` : ""} ${
-        !!limit ? `LIMIT ${limit}` : ""
-      }`
-    );
-    db.close();
-
-    return results;
+    return { checkedOK: true, error: "No error." };
   },
 };
 

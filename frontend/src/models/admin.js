@@ -1,5 +1,5 @@
-import { API_BASE } from "../utils/constants";
-import { baseHeaders } from "../utils/request";
+import { API_BASE } from "@/utils/constants";
+import { baseHeaders } from "@/utils/request";
 
 const Admin = {
   // User Management
@@ -139,31 +139,6 @@ const Admin = {
       });
   },
 
-  // Workspace Chats Mgmt
-  chats: async (offset = 0) => {
-    return await fetch(`${API_BASE}/admin/workspace-chats`, {
-      method: "POST",
-      headers: baseHeaders(),
-      body: JSON.stringify({ offset }),
-    })
-      .then((res) => res.json())
-      .catch((e) => {
-        console.error(e);
-        return [];
-      });
-  },
-  deleteChat: async (chatId) => {
-    return await fetch(`${API_BASE}/admin/workspace-chats/${chatId}`, {
-      method: "DELETE",
-      headers: baseHeaders(),
-    })
-      .then((res) => res.json())
-      .catch((e) => {
-        console.error(e);
-        return { success: false, error: e.message };
-      });
-  },
-
   // System Preferences
   systemPreferences: async () => {
     return await fetch(`${API_BASE}/admin/system-preferences`, {
@@ -188,32 +163,49 @@ const Admin = {
         return { success: false, error: e.message };
       });
   },
-  uploadLogo: async function (formData) {
-    return await fetch(`${API_BASE}/system/upload-logo`, {
-      method: "POST",
-      body: formData,
+
+  // API Keys
+  getApiKeys: async function () {
+    return fetch(`${API_BASE}/admin/api-keys`, {
+      method: "GET",
       headers: baseHeaders(),
     })
       .then((res) => {
-        if (!res.ok) throw new Error("Error uploading logo.");
-        return { success: true, error: null };
+        if (!res.ok) {
+          throw new Error(res.statusText || "Error fetching api keys.");
+        }
+        return res.json();
       })
       .catch((e) => {
-        console.log(e);
-        return { success: false, error: e.message };
+        console.error(e);
+        return { apiKeys: [], error: e.message };
       });
   },
-  removeCustomLogo: async function () {
-    return await fetch(`${API_BASE}/system/remove-logo`, {
+  generateApiKey: async function () {
+    return fetch(`${API_BASE}/admin/generate-api-key`, {
+      method: "POST",
       headers: baseHeaders(),
     })
       .then((res) => {
-        if (res.ok) return { success: true, error: null };
-        throw new Error("Error removing logo!");
+        if (!res.ok) {
+          throw new Error(res.statusText || "Error generating api key.");
+        }
+        return res.json();
       })
       .catch((e) => {
-        console.log(e);
-        return { success: false, error: e.message };
+        console.error(e);
+        return { apiKey: null, error: e.message };
+      });
+  },
+  deleteApiKey: async function (apiKeyId = "") {
+    return fetch(`${API_BASE}/admin/delete-api-key/${apiKeyId}`, {
+      method: "DELETE",
+      headers: baseHeaders(),
+    })
+      .then((res) => res.ok)
+      .catch((e) => {
+        console.error(e);
+        return false;
       });
   },
 };
